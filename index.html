@@ -152,11 +152,12 @@
   <button class="add-button" id="save-json">JSON 저장</button>
 
   <script>
-    // 이미지 미리보기 및 삭제
-    function previewImage(event, idx) {
+    // 미리보기 및 삭제 함수
+    function previewImage(event, idx, type) {
       const input = event.target;
-      const preview = document.getElementById(`preview-${idx}`);
-      const deleteBtn = document.getElementById(`delete-${idx}`);
+      // 같은 아이디어 블록 내에서 해당 type의 미리보기 요소를 찾는다
+      const preview = document.getElementById(`preview-${type}-${idx}`);
+      const deleteBtn = document.getElementById(`delete-${type}-${idx}`);
       if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -168,10 +169,10 @@
         reader.readAsDataURL(input.files[0]);
       }
     }
-    function deleteImage(idx) {
-      const input = document.querySelector(`input[name="image-${idx}"]`);
-      const preview = document.getElementById(`preview-${idx}`);
-      const deleteBtn = document.getElementById(`delete-${idx}`);
+    function deleteImage(idx, type) {
+      const input = document.querySelector(`input[name="image-${type}-${idx}"]`);
+      const preview = document.getElementById(`preview-${type}-${idx}`);
+      const deleteBtn = document.getElementById(`delete-${type}-${idx}`);
       input.value = "";
       preview.src = "";
       preview.style.display = 'none';
@@ -216,11 +217,20 @@
         </div>
         <input type="hidden" name="role-${idx}" value="${data.role||''}" />
 
+        <!-- 사람 입력 블록 -->
         <div class="human-input" style="display:${data.role==='1'?'none':'block'};">
           <label>아이디어 내용:</label>
           <textarea name="idea-${idx}" rows="3">${data.idea||''}</textarea>
+
+          <label>관련 이미지 (스케치 등):</label>
+          <input type="file" name="image-human-${idx}" accept="image/*" onchange="previewImage(event, ${idx}, 'human')">
+          <div class="image-controls">
+            <img id="preview-human-${idx}" class="preview" src="${data.imagePreview||''}" style="display:${data.imagePreview?'block':'none'};" />
+            <button type="button" id="delete-human-${idx}" style="display:${data.imagePreview?'inline-block':'none'};" onclick="deleteImage(${idx}, 'human')">삭제</button>
+          </div>
         </div>
 
+        <!-- AI 입력 블록 -->
         <div class="ai-options" style="display:${data.role==='1'?'block':'none'};">
           <label>사용한 이미지 생성 플랫폼 태그:</label>
           <div class="platform-tag-buttons">
@@ -257,10 +267,10 @@
           <textarea name="image-description-${idx}" rows="2">${data.imageDesc||''}</textarea>
 
           <label>관련 이미지:</label>
-          <input type="file" name="image-${idx}" accept="image/*" onchange="previewImage(event, ${idx})">
+          <input type="file" name="image-ai-${idx}" accept="image/*" onchange="previewImage(event, ${idx}, 'ai')">
           <div class="image-controls">
-            <img id="preview-${idx}" class="preview" src="${data.imagePreview||''}" style="display:${data.imagePreview?'block':'none'};" />
-            <button type="button" id="delete-${idx}" style="display:${data.imagePreview?'inline-block':'none'};" onclick="deleteImage(${idx})">삭제</button>
+            <img id="preview-ai-${idx}" class="preview" src="${data.imagePreview||''}" style="display:${data.imagePreview?'block':'none'};" />
+            <button type="button" id="delete-ai-${idx}" style="display:${data.imagePreview?'inline-block':'none'};" onclick="deleteImage(${idx}, 'ai')">삭제</button>
           </div>
 
           <label>AI 이미지 만족도:</label>
@@ -274,7 +284,6 @@
           <input type="hidden" name="image-satisfaction-${idx}" value="${data.imageSatisfaction||''}" />
         </div>
       `;
-
       list.appendChild(container);
 
       // 1) 역할 선택 버튼 바인딩
@@ -293,7 +302,7 @@
           autoSave();
         });
       });
-      // 데이터가 이미 있으면 선택 상태로 표시
+      // 이미 데이터가 있으면 선택 상태로 복원
       if (data.role) {
         roleBtns.forEach(b => {
           if (b.getAttribute('data-role') === data.role) {
@@ -408,12 +417,28 @@
         const satisfaction = item.querySelector(`input[name="satisfaction-${idx}"]`).value || '';
         const imageDesc = item.querySelector(`textarea[name="image-description-${idx}"]`).value;
         const imageSatisfaction = item.querySelector(`input[name="image-satisfaction-${idx}"]`).value || '';
-        const previewImg = item.querySelector(`#preview-${idx}`);
-        const imagePreview = previewImg.src || '';
+
+        // role에 따라 적절한 preview 아이디에서 src를 가져온다
+        let imagePreview = '';
+        if (role === '0') {
+          const previewHuman = item.querySelector(`#preview-human-${idx}`);
+          imagePreview = previewHuman ? previewHuman.src : '';
+        } else {
+          const previewAi = item.querySelector(`#preview-ai-${idx}`);
+          imagePreview = previewAi ? previewAi.src : '';
+        }
+
         backupData.push({
-          role, idea, platform, platformOther,
-          prompt, gptHelp, satisfaction, imageDesc,
-          imageSatisfaction, imagePreview
+          role,
+          idea,
+          platform,
+          platformOther,
+          prompt,
+          gptHelp,
+          satisfaction,
+          imageDesc,
+          imageSatisfaction,
+          imagePreview
         });
       });
       localStorage.setItem('ideaFormBackup', JSON.stringify(backupData));
@@ -447,7 +472,7 @@
       const zip = new JSZip();
       let valid = true;
 
-      // 리셋 카운터 (저장할 때마다 처음부터 번호 매김)
+      // 리셋 카운터 (저장 시마다 처음부터 번호 매김)
       moveCounter = 0;
       aiGroupCounter = 0;
       humanGroupCounter = 0;
@@ -472,16 +497,15 @@
             group_id: groupId
           });
 
-          // 사람이 업로드한 이미지 저장 (필요 시)
-          const imageInput = item.querySelector(`input[name="image-${idx}"]`);
+          // 사람이 업로드한 이미지 저장
+          const imageInput = item.querySelector(`input[name="image-human-${idx}"]`);
           if (imageInput && imageInput.files.length > 0) {
             const file = imageInput.files[0];
             const ext = file.name.split('.').pop();
-            const filename = `image-${idx}.${ext}`;
+            const filename = `image-human-${idx}.${ext}`;
             const buffer = await file.arrayBuffer();
             zip.file(filename, buffer);
             const moveId3 = getMoveId();
-            // 사람 이미지 노드에도 만족도는 없으므로 저장하지 않음
             episode.push({
               id: moveId3,
               actor: 0,
@@ -528,11 +552,11 @@
           }
 
           // AI 이미지 업로드 및 만족도 저장
-          const imageInput = item.querySelector(`input[name="image-${idx}"]`);
+          const imageInput = item.querySelector(`input[name="image-ai-${idx}"]`);
           if (imageInput && imageInput.files.length > 0) {
             const file = imageInput.files[0];
             const ext = file.name.split('.').pop();
-            const filename = `image-${idx}.${ext}`;
+            const filename = `image-ai-${idx}.${ext}`;
             const buffer = await file.arrayBuffer();
             zip.file(filename, buffer);
             const moveId3 = getMoveId();
