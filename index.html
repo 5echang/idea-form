@@ -39,11 +39,6 @@
     .idea-item strong {
       font-size: 1.3rem;
     }
-    .idea-item .ids {
-      font-size: 0.85rem;
-      color: #666;
-      margin-top: 0.3rem;
-    }
     .idea-item label {
       font-weight: bold;
       display: block;
@@ -260,24 +255,24 @@
 
           <label>생성된 이미지 설명:</label>
           <textarea name="image-description-${idx}" rows="2">${data.imageDesc||''}</textarea>
-        </div>
 
-        <label>관련 이미지:</label>
-        <input type="file" name="image-${idx}" accept="image/*" onchange="previewImage(event, ${idx})">
-        <div class="image-controls">
-          <img id="preview-${idx}" class="preview" src="${data.imagePreview||''}" style="display:${data.imagePreview?'block':'none'};" />
-          <button type="button" id="delete-${idx}" style="display:${data.imagePreview?'inline-block':'none'};" onclick="deleteImage(${idx})">삭제</button>
-        </div>
+          <label>관련 이미지:</label>
+          <input type="file" name="image-${idx}" accept="image/*" onchange="previewImage(event, ${idx})">
+          <div class="image-controls">
+            <img id="preview-${idx}" class="preview" src="${data.imagePreview||''}" style="display:${data.imagePreview?'block':'none'};" />
+            <button type="button" id="delete-${idx}" style="display:${data.imagePreview?'inline-block':'none'};" onclick="deleteImage(${idx})">삭제</button>
+          </div>
 
-        <label>AI 이미지 만족도:</label>
-        <div class="image-satisfaction-buttons">
-          <button type="button" data-image-satisfaction="5">😍 매우 만족</button>
-          <button type="button" data-image-satisfaction="4">😊 만족</button>
-          <button type="button" data-image-satisfaction="3">😐 보통</button>
-          <button type="button" data-image-satisfaction="2">☹️ 불만족</button>
-          <button type="button" data-image-satisfaction="1">😠 매우 불만족</button>
+          <label>AI 이미지 만족도:</label>
+          <div class="image-satisfaction-buttons">
+            <button type="button" data-image-satisfaction="5">😍 매우 만족</button>
+            <button type="button" data-image-satisfaction="4">😊 만족</button>
+            <button type="button" data-image-satisfaction="3">😐 보통</button>
+            <button type="button" data-image-satisfaction="2">☹️ 불만족</button>
+            <button type="button" data-image-satisfaction="1">😠 매우 불만족</button>
+          </div>
+          <input type="hidden" name="image-satisfaction-${idx}" value="${data.imageSatisfaction||''}" />
         </div>
-        <input type="hidden" name="image-satisfaction-${idx}" value="${data.imageSatisfaction||''}" />
       `;
 
       list.appendChild(container);
