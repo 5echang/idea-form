@@ -115,7 +115,7 @@
 
   <!-- 실험 목적 및 안내 -->
   <div class="guide">
-    <p><strong>실험 목적:</strong> 이 폼은 여러분이 디자인 과정에서 만든 아이디어를 기록하고, 그 아이디어가 어떻게 생성되었는지,연관되어있는지를 분석하기 위한 실험입니다.</p>
+    <p><strong>실험 목적:</strong> 이 폼은 여러분이 디자인 과정에서 만든 아이디어를 기록하고, 그 아이디어가 어떻게 생성되었는지, 연관되어 있는지를 분석하기 위한 실험입니다.</p>
     <ul>
       <li>1. 아이디어가 떠오른 순서대로 입력하세요.</li>
       <li>2. 그 아이디어가 <strong>'직접 생각한 것'</strong>인지 <strong>'AI 이미지 생성기를 활용한 것'</strong>인지 선택하세요.</li>
@@ -134,7 +134,7 @@
 
   <div id="idea-list"></div>
   <button class="add-button" id="add-button">입력 추가</button>
-  <button class="add-button" id="save-json">ZIP 저장</button>
+  <button class="add-button" id="save-json">JSON 저장</button>
 
   <script>
     // 이미지 미리보기
@@ -146,10 +146,24 @@
         reader.onload = function(e) {
           preview.src = e.target.result;
           preview.style.display = 'block';
-          autoSave(); // 이미지 선택 후에도 자동 저장
+          autoSave();
         };
         reader.readAsDataURL(input.files[0]);
       }
+    }
+
+    // move ID 카운터
+    let moveCounter = 0;
+    function getMoveId() {
+      moveCounter++;
+      return `move_${String(moveCounter).padStart(2, '0')}`;
+    }
+
+    // AI group 카운터
+    let aiGroupCounter = 0;
+    function getGroupId() {
+      aiGroupCounter++;
+      return `ai_${String(aiGroupCounter).padStart(2, '0')}`;
     }
 
     // 아이디어 노드 추가 함수
@@ -373,19 +387,30 @@
       const zip = new JSZip();
       let valid = true;
 
+      // 리셋 카운터 (저장할 때마다 처음부터 번호 매김)
+      moveCounter = 0;
+      aiGroupCounter = 0;
+
       for (let i = 0; i < items.length; i++) {
         const idx = i + 1;
         const item = items[i];
         const role = item.querySelector(`input[name="role-${idx}"]`).value;
         if (!role) valid = false;
 
+        const moveId = getMoveId();
+
         if (role === '0') {
           // 사람이 입력한 경우
           const text = item.querySelector(`textarea[name="idea-${idx}"]`).value.trim();
           if (!text) valid = false;
-          episode.push({ actor: 0, text });
+          episode.push({
+            id: moveId,
+            actor: 0,
+            text
+          });
         } else if (role === '1') {
           // AI가 입력한 경우
+          const groupId = getGroupId();
           const platform = item.querySelector(`input[name="platform-${idx}"]`).value;
           const platformOther = item.querySelector(`input[name="platform-other-${idx}"]`).value.trim();
           const entryPlatform = platform === 'Other' ? platformOther : platform;
@@ -395,20 +420,31 @@
           const satisfaction = item.querySelector(`input[name="satisfaction-${idx}"]`).value;
 
           if (!entryPlatform || !prompt || !gptHelp || !satisfaction) valid = false;
+          // 프롬프트 노드
           episode.push({
+            id: moveId,
             actor: 1,
             type: 'prompt',
             platform: entryPlatform,
             gpt_help: gptHelp,
             satisfaction,
-            text: prompt
+            text: prompt,
+            group_id: groupId
           });
+
           if (imageDesc) {
-            episode.push({ actor: 1, type: 'image_description', text: imageDesc });
+            const moveId2 = getMoveId();
+            episode.push({
+              id: moveId2,
+              actor: 1,
+              type: 'image_description',
+              text: imageDesc,
+              group_id: groupId
+            });
           }
         }
 
-        // 이미지 파일 ZIP에 추가
+        // 이미지 파일 ZIP에 추가 (AI 또는 사람이 업로드할 수 있음)
         const imageInput = item.querySelector(`input[name="image-${idx}"]`);
         if (imageInput && imageInput.files.length > 0) {
           const file = imageInput.files[0];
@@ -416,7 +452,14 @@
           const filename = `image-${idx}.${ext}`;
           const buffer = await file.arrayBuffer();
           zip.file(filename, buffer);
-          episode.push({ actor: parseInt(role||0), type: 'image_file', imageFilename: filename });
+          const moveId3 = getMoveId();
+          episode.push({
+            id: moveId3,
+            actor: parseInt(role||0),
+            type: 'image_file',
+            imageFilename: filename,
+            group_id: role === '1' ? `ai_${String(aiGroupCounter).padStart(2,'0')}` : undefined
+          });
         }
       }
 
@@ -437,3 +480,4 @@
   </script>
 </body>
 </html>
+
